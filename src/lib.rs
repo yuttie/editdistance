@@ -31,6 +31,7 @@ fn pdist<'py>(py: Python<'py>, xs: Vec<&str>, ins_cost: usize, del_cost: usize, 
 mod rs {
     use std::vec::Vec;
     use ndarray::Array2;
+    use ndarray::parallel::prelude::par_azip;
 
     /// Compute a DP table.
     pub fn dp(s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> Array2<usize> {
@@ -104,14 +105,13 @@ mod rs {
     }
 
     /// Compute pairwise distances between strings.
-    pub fn pdist<T: AsRef<str>>(xs: &[T], ins_cost: usize, del_cost: usize, sub_cost: usize) -> Array2<usize> {
+    pub fn pdist<T: AsRef<str> + Sync>(xs: &[T], ins_cost: usize, del_cost: usize, sub_cost: usize) -> Array2<usize> {
         let n = xs.len();
         let mut dmat = Array2::<usize>::zeros((n, n));
-        for (i, s) in xs.iter().enumerate() {
-            for (j, t) in xs.iter().enumerate() {
-                dmat[[i, j]] = d(s.as_ref(), t.as_ref(), ins_cost, del_cost, sub_cost);
-            }
-        }
+        let indices = ndarray::indices_of(&dmat);
+        par_azip!((dmat_ij in &mut dmat, (i, j) in indices) {
+            *dmat_ij = d(xs[i].as_ref(), xs[j].as_ref(), ins_cost, del_cost, sub_cost);
+        });
         dmat
     }
 }
