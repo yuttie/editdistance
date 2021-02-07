@@ -10,13 +10,13 @@ fn editdistance(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 #[pyfunction]
-fn d(s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> PyResult<usize> {
-    Ok(rs::d(s, t, ins_cost, del_cost, sub_cost))
+fn d(py: Python, s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> usize {
+    py.allow_threads(|| rs::d(s, t, ins_cost, del_cost, sub_cost))
 }
 
 #[pyfunction]
-fn nops(s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> PyResult<(usize, usize, usize)> {
-    Ok(rs::nops(s, t, ins_cost, del_cost, sub_cost))
+fn nops(py: Python, s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> (usize, usize, usize) {
+    py.allow_threads(|| rs::nops(s, t, ins_cost, del_cost, sub_cost))
 }
 
 mod rs {
