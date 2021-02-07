@@ -5,7 +5,18 @@ use pyo3::wrap_pyfunction;
 fn editdistance(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(d, m)?)?;
     m.add_function(wrap_pyfunction!(nops, m)?)?;
+
     Ok(())
+}
+
+#[pyfunction]
+fn d(s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> PyResult<usize> {
+    Ok(rs::d(s, t, ins_cost, del_cost, sub_cost))
+}
+
+#[pyfunction]
+fn nops(s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> PyResult<(usize, usize, usize)> {
+    Ok(rs::nops(s, t, ins_cost, del_cost, sub_cost))
 }
 
 mod rs {
@@ -36,54 +47,52 @@ mod rs {
 
         d
     }
-}
 
-/// Count the number of operations for each type.
-#[pyfunction]
-fn d(s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> PyResult<usize> {
-    let d = rs::dp(s, t, ins_cost, del_cost, sub_cost);
-    let shape = d.shape();
-    let m = shape[0] - 1;
-    let n = shape[1] - 1;
+    /// Count the number of operations for each type.
+    pub fn d(s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> usize {
+        let d = dp(s, t, ins_cost, del_cost, sub_cost);
+        let shape = d.shape();
+        let m = shape[0] - 1;
+        let n = shape[1] - 1;
 
-    Ok(d[[m, n]])
-}
-
-/// Count the number of operations for each type.
-#[pyfunction]
-fn nops(s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> PyResult<(usize, usize, usize)> {
-    let d = rs::dp(s, t, ins_cost, del_cost, sub_cost);
-    let mut nins = 0;
-    let mut ndel = 0;
-    let mut nsub = 0;
-    let shape = d.shape();
-    let mut i = shape[0] - 1;
-    let mut j = shape[1] - 1;
-    while !(i == 0 && j == 0) {
-        if d[[i - 1, j - 1]] <= d[[i, j - 1]] {
-            if d[[i - 1, j - 1]] <= d[[i - 1, j]] {
-                nsub += if d[[i -1, j - 1]] != d[[i, j]] { 1 } else { 0 };
-                i -= 1;
-                j -= 1;
-            }
-            else {
-                ndel += 1;
-                i -= 1;
-            }
-        }
-        else {
-            if d[[i, j - 1]] <= d[[i - 1, j]] {
-                nins += 1;
-                j -= 1;
-            }
-            else {
-                ndel += 1;
-                i -= 1;
-            }
-        }
+        d[[m, n]]
     }
 
-    Ok((nins, ndel, nsub))
+    /// Count the number of operations for each type.
+    pub fn nops(s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> (usize, usize, usize) {
+        let d = dp(s, t, ins_cost, del_cost, sub_cost);
+        let mut nins = 0;
+        let mut ndel = 0;
+        let mut nsub = 0;
+        let shape = d.shape();
+        let mut i = shape[0] - 1;
+        let mut j = shape[1] - 1;
+        while !(i == 0 && j == 0) {
+            if d[[i - 1, j - 1]] <= d[[i, j - 1]] {
+                if d[[i - 1, j - 1]] <= d[[i - 1, j]] {
+                    nsub += if d[[i -1, j - 1]] != d[[i, j]] { 1 } else { 0 };
+                    i -= 1;
+                    j -= 1;
+                }
+                else {
+                    ndel += 1;
+                    i -= 1;
+                }
+            }
+            else {
+                if d[[i, j - 1]] <= d[[i - 1, j]] {
+                    nins += 1;
+                    j -= 1;
+                }
+                else {
+                    ndel += 1;
+                    i -= 1;
+                }
+            }
+        }
+
+        (nins, ndel, nsub)
+    }
 }
 
 #[cfg(test)]
@@ -116,13 +125,13 @@ mod tests {
 
     #[test]
     fn test_d() {
-        assert_eq!(d("sunday", "saturday", 1, 1, 1).unwrap(), 3);
-        assert_eq!(d("sitting", "kitten", 1, 1, 1).unwrap(), 3);
+        assert_eq!(rs::d("sunday", "saturday", 1, 1, 1), 3);
+        assert_eq!(rs::d("sitting", "kitten", 1, 1, 1), 3);
     }
 
     #[test]
     fn test_nops() {
-        assert_eq!(nops("sunday", "saturday", 1, 1, 1).unwrap(), (2, 0, 1));
-        assert_eq!(nops("sitting", "kitten", 1, 1, 1).unwrap(), (0, 1, 2));
+        assert_eq!(rs::nops("sunday", "saturday", 1, 1, 1), (2, 0, 1));
+        assert_eq!(rs::nops("sitting", "kitten", 1, 1, 1), (0, 1, 2));
     }
 }
