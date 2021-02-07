@@ -1,10 +1,14 @@
+use std::vec::Vec;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
+use ndarray::Dim;
+use numpy::{PyArray, ToPyArray};
 
 #[pymodule]
 fn editdistance(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(d, m)?)?;
     m.add_function(wrap_pyfunction!(nops, m)?)?;
+    m.add_function(wrap_pyfunction!(pdist, m)?)?;
 
     Ok(())
 }
@@ -17,6 +21,11 @@ fn d(py: Python, s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: u
 #[pyfunction]
 fn nops(py: Python, s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> (usize, usize, usize) {
     py.allow_threads(|| rs::nops(s, t, ins_cost, del_cost, sub_cost))
+}
+
+#[pyfunction]
+fn pdist<'py>(py: Python<'py>, xs: Vec<&str>, ins_cost: usize, del_cost: usize, sub_cost: usize) -> &'py PyArray<usize, Dim<[usize; 2]>> {
+    py.allow_threads(|| rs::pdist(&xs, ins_cost, del_cost, sub_cost)).to_pyarray(py)
 }
 
 mod rs {
