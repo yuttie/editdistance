@@ -93,6 +93,18 @@ mod rs {
 
         (nins, ndel, nsub)
     }
+
+    /// Compute pairwise distances between strings.
+    pub fn pdist<T: AsRef<str>>(xs: &[T], ins_cost: usize, del_cost: usize, sub_cost: usize) -> Array2<usize> {
+        let n = xs.len();
+        let mut dmat = Array2::<usize>::zeros((n, n));
+        for (i, s) in xs.iter().enumerate() {
+            for (j, t) in xs.iter().enumerate() {
+                dmat[[i, j]] = d(s.as_ref(), t.as_ref(), ins_cost, del_cost, sub_cost);
+            }
+        }
+        dmat
+    }
 }
 
 #[cfg(test)]
@@ -133,5 +145,15 @@ mod tests {
     fn test_nops() {
         assert_eq!(rs::nops("sunday", "saturday", 1, 1, 1), (2, 0, 1));
         assert_eq!(rs::nops("sitting", "kitten", 1, 1, 1), (0, 1, 2));
+    }
+
+    #[test]
+    fn test_pdist() {
+        assert_eq!(rs::pdist(&["sunday", "saturday", "sitting", "kitten"], 1, 1, 1), array![
+            [0, 3, 6, 6],
+            [3, 0, 6, 7],
+            [6, 6, 0, 3],
+            [6, 7, 3, 0],
+        ]);
     }
 }
