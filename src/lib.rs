@@ -14,38 +14,39 @@ fn editdistance(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 #[pyfunction]
-fn d(py: Python, s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> usize {
+fn d(py: Python, s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> u32 {
     py.allow_threads(|| rs::d(s, t, ins_cost, del_cost, sub_cost))
 }
 
 #[pyfunction]
-fn nops(py: Python, s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> (usize, usize, usize) {
+fn nops(py: Python, s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> (u32, u32, u32) {
     py.allow_threads(|| rs::nops(s, t, ins_cost, del_cost, sub_cost))
 }
 
 #[pyfunction]
-fn pdist<'py>(py: Python<'py>, xs: Vec<&str>, ins_cost: usize, del_cost: usize, sub_cost: usize) -> &'py PyArray<usize, Dim<[usize; 2]>> {
+fn pdist<'py>(py: Python<'py>, xs: Vec<&str>, ins_cost: u32, del_cost: u32, sub_cost: u32) -> &'py PyArray<u32, Dim<[usize; 2]>> {
     py.allow_threads(|| rs::pdist(&xs, ins_cost, del_cost, sub_cost)).to_pyarray(py)
 }
 
 mod rs {
+    use std::convert::TryInto;
     use std::vec::Vec;
     use ndarray::Array2;
     use ndarray::parallel::prelude::par_azip;
 
     /// Compute a DP table.
-    pub fn dp(s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> Array2<usize> {
+    pub fn dp(s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> Array2<u32> {
         let s = s.chars().collect::<Vec<char>>();
         let t = t.chars().collect::<Vec<char>>();
         let m = s.len();
         let n = t.len();
 
-        let mut d = Array2::<usize>::zeros((m + 1, n + 1));
+        let mut d = Array2::<u32>::zeros((m + 1, n + 1));
         for i in 0..m + 1 {
-            d[[i, 0]] = i;
+            d[[i, 0]] = i.try_into().unwrap();
         }
         for j in 0..n + 1 {
-            d[[0, j]] = j;
+            d[[0, j]] = j.try_into().unwrap();
         }
         for i in 1..m + 1 {
             for j in 1..n + 1 {
@@ -59,7 +60,7 @@ mod rs {
     }
 
     /// Count the number of operations for each type.
-    pub fn d(s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> usize {
+    pub fn d(s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> u32 {
         let d = dp(s, t, ins_cost, del_cost, sub_cost);
         let shape = d.shape();
         let m = shape[0] - 1;
@@ -69,7 +70,7 @@ mod rs {
     }
 
     /// Count the number of operations for each type.
-    pub fn nops(s: &str, t: &str, ins_cost: usize, del_cost: usize, sub_cost: usize) -> (usize, usize, usize) {
+    pub fn nops(s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> (u32, u32, u32) {
         let d = dp(s, t, ins_cost, del_cost, sub_cost);
         let mut nins = 0;
         let mut ndel = 0;
@@ -105,9 +106,9 @@ mod rs {
     }
 
     /// Compute pairwise distances between strings.
-    pub fn pdist<T: AsRef<str> + Sync>(xs: &[T], ins_cost: usize, del_cost: usize, sub_cost: usize) -> Array2<usize> {
+    pub fn pdist<T: AsRef<str> + Sync>(xs: &[T], ins_cost: u32, del_cost: u32, sub_cost: u32) -> Array2<u32> {
         let n = xs.len();
-        let mut dmat = Array2::<usize>::zeros((n, n));
+        let mut dmat = Array2::<u32>::zeros((n, n));
         let indices = ndarray::indices_of(&dmat);
         par_azip!((dmat_ij in &mut dmat, (i, j) in indices) {
             *dmat_ij = d(xs[i].as_ref(), xs[j].as_ref(), ins_cost, del_cost, sub_cost);
