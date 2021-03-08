@@ -48,12 +48,14 @@ mod rs {
         for j in 0..n + 1 {
             d[[0, j]] = j.try_into().unwrap();
         }
-        for i in 1..m + 1 {
-            for j in 1..n + 1 {
-                d[[i, j]] = (d[[i - 1, j    ]] + del_cost)
-                    .min(d[[i,     j - 1]] + ins_cost)
-                    .min(d[[i - 1, j - 1]] + if s[i - 1] == t[j - 1] { 0 } else { sub_cost });
+        if m > 0 && n > 0 {
+            for i in 1..m + 1 {
+                for j in 1..n + 1 {
+                    d[[i, j]] = (d[[i - 1, j    ]] + del_cost)
+                        .min(d[[i,     j - 1]] + ins_cost)
+                        .min(d[[i - 1, j - 1]] + if s[i - 1] == t[j - 1] { 0 } else { sub_cost });
                 }
+            }
         }
 
         d
@@ -78,7 +80,7 @@ mod rs {
         let shape = d.shape();
         let mut i = shape[0] - 1;
         let mut j = shape[1] - 1;
-        while !(i == 0 && j == 0) {
+        while !(i == 0 || j == 0) {
             if d[[i - 1, j - 1]] <= d[[i, j - 1]] {
                 if d[[i - 1, j - 1]] <= d[[i - 1, j]] {
                     nsub += if d[[i -1, j - 1]] != d[[i, j]] { 1 } else { 0 };
@@ -100,6 +102,14 @@ mod rs {
                     i -= 1;
                 }
             }
+        }
+        while i > 0 {
+            ndel += 1;
+            i -= 1;
+        }
+        while j > 0 {
+            nins += 1;
+            j -= 1;
         }
 
         (nins, ndel, nsub)
@@ -149,21 +159,26 @@ mod tests {
     fn test_d() {
         assert_eq!(rs::d("sunday", "saturday", 1, 1, 1), 3);
         assert_eq!(rs::d("sitting", "kitten", 1, 1, 1), 3);
+        assert_eq!(rs::d("", "empty", 1, 1, 1), 5);
+        assert_eq!(rs::d("empty", "", 1, 1, 1), 5);
     }
 
     #[test]
     fn test_nops() {
         assert_eq!(rs::nops("sunday", "saturday", 1, 1, 1), (2, 0, 1));
         assert_eq!(rs::nops("sitting", "kitten", 1, 1, 1), (0, 1, 2));
+        assert_eq!(rs::nops("", "empty", 1, 1, 1), (5, 0, 0));
+        assert_eq!(rs::nops("empty", "", 1, 1, 1), (0, 5, 0));
     }
 
     #[test]
     fn test_pdist() {
-        assert_eq!(rs::pdist(&["sunday", "saturday", "sitting", "kitten"], 1, 1, 1), array![
-            [0, 3, 6, 6],
-            [3, 0, 6, 7],
-            [6, 6, 0, 3],
-            [6, 7, 3, 0],
+        assert_eq!(rs::pdist(&["sunday", "saturday", "sitting", "kitten", ""], 1, 1, 1), array![
+            [0, 3, 6, 6, 6],
+            [3, 0, 6, 7, 8],
+            [6, 6, 0, 3, 7],
+            [6, 7, 3, 0, 6],
+            [6, 8, 7, 6, 0],
         ]);
     }
 }
