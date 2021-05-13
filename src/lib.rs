@@ -6,7 +6,7 @@ use numpy::{PyArray, ToPyArray};
 
 #[pymodule]
 fn editdistance(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(d, m)?)?;
+    m.add_function(wrap_pyfunction!(dist, m)?)?;
     m.add_function(wrap_pyfunction!(nops, m)?)?;
     m.add_function(wrap_pyfunction!(pdist, m)?)?;
 
@@ -14,8 +14,8 @@ fn editdistance(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 #[pyfunction]
-fn d(py: Python, s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> u32 {
-    py.allow_threads(|| rs::d(s, t, ins_cost, del_cost, sub_cost))
+fn dist(py: Python, s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> u32 {
+    py.allow_threads(|| rs::dist(s, t, ins_cost, del_cost, sub_cost))
 }
 
 #[pyfunction]
@@ -41,49 +41,49 @@ mod rs {
         let m = s.len();
         let n = t.len();
 
-        let mut d = Array2::<u32>::zeros((m + 1, n + 1));
+        let mut table = Array2::<u32>::zeros((m + 1, n + 1));
         for i in 0..m + 1 {
-            d[[i, 0]] = i.try_into().unwrap();
+            table[[i, 0]] = i.try_into().unwrap();
         }
         for j in 0..n + 1 {
-            d[[0, j]] = j.try_into().unwrap();
+            table[[0, j]] = j.try_into().unwrap();
         }
         if m > 0 && n > 0 {
             for i in 1..m + 1 {
                 for j in 1..n + 1 {
-                    d[[i, j]] = (d[[i - 1, j    ]] + del_cost)
-                        .min(d[[i,     j - 1]] + ins_cost)
-                        .min(d[[i - 1, j - 1]] + if s[i - 1] == t[j - 1] { 0 } else { sub_cost });
+                    table[[i, j]] = (table[[i - 1, j    ]] + del_cost)
+                        .min(table[[i,     j - 1]] + ins_cost)
+                        .min(table[[i - 1, j - 1]] + if s[i - 1] == t[j - 1] { 0 } else { sub_cost });
                 }
             }
         }
 
-        d
+        table
     }
 
     /// Count the number of operations for each type.
-    pub fn d(s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> u32 {
-        let d = dp(s, t, ins_cost, del_cost, sub_cost);
-        let shape = d.shape();
+    pub fn dist(s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> u32 {
+        let table = dp(s, t, ins_cost, del_cost, sub_cost);
+        let shape = table.shape();
         let m = shape[0] - 1;
         let n = shape[1] - 1;
 
-        d[[m, n]]
+        table[[m, n]]
     }
 
     /// Count the number of operations for each type.
     pub fn nops(s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> (u32, u32, u32) {
-        let d = dp(s, t, ins_cost, del_cost, sub_cost);
+        let table = dp(s, t, ins_cost, del_cost, sub_cost);
         let mut nins = 0;
         let mut ndel = 0;
         let mut nsub = 0;
-        let shape = d.shape();
+        let shape = table.shape();
         let mut i = shape[0] - 1;
         let mut j = shape[1] - 1;
         while !(i == 0 || j == 0) {
-            if d[[i - 1, j - 1]] <= d[[i, j - 1]] {
-                if d[[i - 1, j - 1]] <= d[[i - 1, j]] {
-                    nsub += if d[[i -1, j - 1]] != d[[i, j]] { 1 } else { 0 };
+            if table[[i - 1, j - 1]] <= table[[i, j - 1]] {
+                if table[[i - 1, j - 1]] <= table[[i - 1, j]] {
+                    nsub += if table[[i -1, j - 1]] != table[[i, j]] { 1 } else { 0 };
                     i -= 1;
                     j -= 1;
                 }
@@ -93,7 +93,7 @@ mod rs {
                 }
             }
             else {
-                if d[[i, j - 1]] <= d[[i - 1, j]] {
+                if table[[i, j - 1]] <= table[[i - 1, j]] {
                     nins += 1;
                     j -= 1;
                 }
@@ -121,7 +121,7 @@ mod rs {
         let mut dmat = Array2::<u32>::zeros((n, n));
         let indices = ndarray::indices_of(&dmat);
         par_azip!((dmat_ij in &mut dmat, (i, j) in indices) {
-            *dmat_ij = d(xs[i].as_ref(), xs[j].as_ref(), ins_cost, del_cost, sub_cost);
+            *dmat_ij = dist(xs[i].as_ref(), xs[j].as_ref(), ins_cost, del_cost, sub_cost);
         });
         dmat
     }
@@ -156,11 +156,11 @@ mod tests {
     }
 
     #[test]
-    fn test_d() {
-        assert_eq!(rs::d("sunday", "saturday", 1, 1, 1), 3);
-        assert_eq!(rs::d("sitting", "kitten", 1, 1, 1), 3);
-        assert_eq!(rs::d("", "empty", 1, 1, 1), 5);
-        assert_eq!(rs::d("empty", "", 1, 1, 1), 5);
+    fn test_dist() {
+        assert_eq!(rs::dist("sunday", "saturday", 1, 1, 1), 3);
+        assert_eq!(rs::dist("sitting", "kitten", 1, 1, 1), 3);
+        assert_eq!(rs::dist("", "empty", 1, 1, 1), 5);
+        assert_eq!(rs::dist("empty", "", 1, 1, 1), 5);
     }
 
     #[test]
