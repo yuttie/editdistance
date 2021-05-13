@@ -1,7 +1,7 @@
 use std::vec::Vec;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-use ndarray::Dim;
+use ndarray::Ix2;
 use numpy::{PyArray, ToPyArray};
 
 #[pymodule]
@@ -24,7 +24,7 @@ fn nops(py: Python, s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u3
 }
 
 #[pyfunction]
-fn pdist<'py>(py: Python<'py>, xs: Vec<&str>, ins_cost: u32, del_cost: u32, sub_cost: u32) -> &'py PyArray<u32, Dim<[usize; 2]>> {
+fn pdist<'py>(py: Python<'py>, xs: Vec<&str>, ins_cost: u32, del_cost: u32, sub_cost: u32) -> &'py PyArray<u32, Ix2> {
     py.allow_threads(|| rs::pdist(&xs, ins_cost, del_cost, sub_cost)).to_pyarray(py)
 }
 
