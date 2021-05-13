@@ -38,19 +38,19 @@ mod rs {
     pub fn dp(s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> Array2<u32> {
         let s = s.chars().collect::<Vec<char>>();
         let t = t.chars().collect::<Vec<char>>();
-        let m = s.len();
-        let n = t.len();
+        let n = s.len();
+        let m = t.len();
 
-        let mut table = Array2::<u32>::zeros((m + 1, n + 1));
-        for i in 0..m + 1 {
+        let mut table = Array2::<u32>::zeros((n + 1, m + 1));
+        for i in 0..n + 1 {
             table[[i, 0]] = i.try_into().unwrap();
         }
-        for j in 0..n + 1 {
+        for j in 0..m + 1 {
             table[[0, j]] = j.try_into().unwrap();
         }
-        if m > 0 && n > 0 {
-            for i in 1..m + 1 {
-                for j in 1..n + 1 {
+        if n > 0 && m > 0 {
+            for i in 1..n + 1 {
+                for j in 1..m + 1 {
                     table[[i, j]] = (table[[i - 1, j    ]] + del_cost)
                         .min(table[[i,     j - 1]] + ins_cost)
                         .min(table[[i - 1, j - 1]] + if s[i - 1] == t[j - 1] { 0 } else { sub_cost });
@@ -65,10 +65,10 @@ mod rs {
     pub fn dist(s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> u32 {
         let table = dp(s, t, ins_cost, del_cost, sub_cost);
         let shape = table.shape();
-        let m = shape[0] - 1;
-        let n = shape[1] - 1;
+        let n = shape[0] - 1;
+        let m = shape[1] - 1;
 
-        table[[m, n]]
+        table[[n, m]]
     }
 
     /// Count the number of operations for each type.
