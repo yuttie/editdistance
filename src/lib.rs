@@ -8,12 +8,13 @@ use numpy::{PyArray, ToPyArray};
 mod rs {
     use std::cmp::max;
     use std::vec::Vec;
+    use std::hash::Hash;
     use std::collections::HashSet;
     use ndarray::{ArrayBase, Array2, Ix2, Data, RawData};
     use ndarray::parallel::prelude::par_azip;
 
     /// Compute a DP table.
-    pub fn dp<'a>(s: &[usize], t: &[usize]) -> Option<Array2<u32>> {
+    pub fn dp<'a, T: Eq>(s: &[T], t: &[T]) -> Option<Array2<u32>> {
         let n = s.len();
         let m = t.len();
 
@@ -38,14 +39,14 @@ mod rs {
     }
 
     /// Collect all the longest common subsequences from a given DP table.
-    pub fn collect<'a, S: Sync + Data + RawData<Elem = u32>>(table: &ArrayBase<S, Ix2>, s: &[usize], t: &[usize]) -> HashSet<Vec<usize>> {
-        fn backtrack<'a, S: Sync + Data + RawData<Elem = u32>>(table: &ArrayBase<S, Ix2>, s: &[usize], t: &[usize], i: usize, j: usize) -> HashSet<Vec<usize>> {
+    pub fn collect<'a, T: Eq + Hash + Clone, S: Sync + Data + RawData<Elem = u32>>(table: &ArrayBase<S, Ix2>, s: &[T], t: &[T]) -> HashSet<Vec<T>> {
+        fn backtrack<'a, T: Eq + Hash + Clone, S: Sync + Data + RawData<Elem = u32>>(table: &ArrayBase<S, Ix2>, s: &[T], t: &[T], i: usize, j: usize) -> HashSet<Vec<T>> {
             if i == 0 || j == 0 {
                 IntoIterator::into_iter([vec![]]).collect()
             }
             else if s[i - 1] == t[j - 1] {
                 backtrack(table, s, t, i - 1, j - 1).into_iter().map(|mut subseq| {
-                    subseq.push(s[i - 1]);
+                    subseq.push(s[i - 1].clone());
                     subseq
                 }).collect()
             }
@@ -67,7 +68,7 @@ mod rs {
     }
 
     /// Compute the length of longest common subsequence of two given sequences.
-    pub fn len<'a>(s: &[usize], t: &[usize]) -> Option<u32> {
+    pub fn len<'a, T: Eq>(s: &[T], t: &[T]) -> Option<u32> {
         let n = s.len();
         let m = t.len();
         dp(s, t).map(|table| table[[n, m]])
