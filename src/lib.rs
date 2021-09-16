@@ -7,7 +7,7 @@ use ndarray::Ix2;
 use numpy::{PyArray, ToPyArray};
 
 #[pymodule]
-fn dtw(_py: Python, m: &PyModule) -> PyResult<()> {
+fn lcs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(dp, m)?)?;
     m.add_function(wrap_pyfunction!(collect, m)?)?;
     m.add_function(wrap_pyfunction!(len, m)?)?;
