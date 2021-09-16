@@ -41,7 +41,6 @@ mod rs {
     use std::hash::Hash;
     use std::collections::HashSet;
     use ndarray::{ArrayBase, Array2, Ix2, Data, RawData};
-    use ndarray::parallel::prelude::par_azip;
 
     /// Compute a DP table.
     pub fn dp<'a, T: Eq>(s: &[T], t: &[T]) -> Option<Array2<u32>> {
@@ -108,7 +107,7 @@ mod rs {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array2, array};
+    use ndarray::{array};
 
     #[test]
     fn test_dp() {
