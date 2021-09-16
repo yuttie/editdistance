@@ -41,13 +41,12 @@ mod rs {
     pub fn collect<'a, S: Sync + Data + RawData<Elem = u32>>(table: &ArrayBase<S, Ix2>, s: &[usize], t: &[usize]) -> HashSet<Vec<usize>> {
         fn backtrack<'a, S: Sync + Data + RawData<Elem = u32>>(table: &ArrayBase<S, Ix2>, s: &[usize], t: &[usize], i: usize, j: usize) -> HashSet<Vec<usize>> {
             if i == 0 || j == 0 {
-                [vec![]].iter().cloned().collect()
+                IntoIterator::into_iter([vec![]]).collect()
             }
             else if s[i - 1] == t[j - 1] {
-                backtrack(table, s, t, i - 1, j - 1).iter().map(|x| {
-                    let mut x = x.clone();
-                    x.push(s[i - 1]);
-                    x
+                backtrack(table, s, t, i - 1, j - 1).into_iter().map(|mut subseq| {
+                    subseq.push(s[i - 1]);
+                    subseq
                 }).collect()
             }
             else {
