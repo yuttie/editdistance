@@ -1,9 +1,39 @@
 use std::vec::Vec;
+use std::collections::HashSet;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use pyo3::exceptions::PyValueError;
 use ndarray::Ix2;
 use numpy::{PyArray, ToPyArray};
+
+#[pymodule]
+fn dtw(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(dp, m)?)?;
+    m.add_function(wrap_pyfunction!(collect, m)?)?;
+    m.add_function(wrap_pyfunction!(len, m)?)?;
+
+    Ok(())
+}
+
+#[pyfunction]
+fn dp<'py>(py: Python<'py>, s: Vec<usize>, t: Vec<usize>) -> PyResult<&'py PyArray<u32, Ix2>> {
+    match py.allow_threads(|| rs::dp(&s, &t)) {
+        Some(table) => Ok(table.to_pyarray(py)),
+        None => Err(PyValueError::new_err("Empty sequence is not allowed.")),
+    }
+}
+
+#[pyfunction]
+fn collect<'py>(py: Python<'py>, table: &'py PyArray<u32, Ix2>, s: Vec<usize>, t: Vec<usize>) -> HashSet<Vec<usize>> {
+    let table = table.readonly();
+    let table = table.as_array();
+    py.allow_threads(|| rs::collect(&table, &s, &t))
+}
+
+#[pyfunction]
+fn len<'py>(py: Python<'py>, s: Vec<usize>, t: Vec<usize>) -> PyResult<u32> {
+    py.allow_threads(|| rs::len(&s, &t)).ok_or(PyValueError::new_err("Empty sequence is not allowed."))
+}
 
 mod rs {
     use std::cmp::max;
