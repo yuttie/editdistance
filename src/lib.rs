@@ -8,6 +8,7 @@ use numpy::{PyArray, ToPyArray};
 mod rs {
     use std::cmp::max;
     use std::vec::Vec;
+    use std::collections::HashSet;
     use ndarray::{ArrayBase, Array2, Ix2, Data, RawData};
     use ndarray::parallel::prelude::par_azip;
 
@@ -37,10 +38,10 @@ mod rs {
     }
 
     /// Collect all the longest common subsequences from a given DP table.
-    pub fn collect<'a, S: Sync + Data + RawData<Elem = u32>>(table: &ArrayBase<S, Ix2>, s: &[usize], t: &[usize]) -> Vec<Vec<usize>> {
-        fn backtrack<'a, S: Sync + Data + RawData<Elem = u32>>(table: &ArrayBase<S, Ix2>, s: &[usize], t: &[usize], i: usize, j: usize) -> Vec<Vec<usize>> {
+    pub fn collect<'a, S: Sync + Data + RawData<Elem = u32>>(table: &ArrayBase<S, Ix2>, s: &[usize], t: &[usize]) -> HashSet<Vec<usize>> {
+        fn backtrack<'a, S: Sync + Data + RawData<Elem = u32>>(table: &ArrayBase<S, Ix2>, s: &[usize], t: &[usize], i: usize, j: usize) -> HashSet<Vec<usize>> {
             if i == 0 || j == 0 {
-                vec![vec![]]
+                [vec![]].iter().cloned().collect()
             }
             else if s[i - 1] == t[j - 1] {
                 backtrack(table, s, t, i - 1, j - 1).iter().map(|x| {
@@ -50,7 +51,7 @@ mod rs {
                 }).collect()
             }
             else {
-                let mut res = Vec::new();
+                let mut res = HashSet::new();
                 if table[[i, j - 1]] >= table[[i - 1, j]] {
                     res.extend(backtrack(table, s, t, i, j - 1).into_iter());
                 }
@@ -113,21 +114,33 @@ mod tests {
         let table = rs::dp(&s, &t);
         assert_eq!(table.is_some(), true);
         let table = table.unwrap();
-        assert_eq!(rs::collect(&table, &s, &t), vec![
+        assert_eq!(rs::collect(&table, &s, &t), [
             vec![0, 1, 2, 3, 4],
-        ]);
+        ].iter().cloned().collect());
     }
 
     #[test]
-    fn test_collect_different_sequences() {
+    fn test_collect_different_sequences1() {
         let s = vec![5, 2, 1, 6, 0, 3, 7];
         let t = vec![2, 7, 1, 0, 4, 5, 3];
         let table = rs::dp(&s, &t);
         assert_eq!(table.is_some(), true);
         let table = table.unwrap();
-        assert_eq!(rs::collect(&table, &s, &t), vec![
+        assert_eq!(rs::collect(&table, &s, &t), [
             vec![2, 1, 0, 3],
-        ]);
+        ].iter().cloned().collect());
+    }
+
+    #[test]
+    fn test_collect_different_sequences2() {
+        let s = vec![10, 0, 11, 12, 1, 2, 13, 14, 3, 15, 4, 16, 5, 17];
+        let t = vec![0, 20, 1, 2, 3, 21, 22, 23, 4, 24, 5];
+        let table = rs::dp(&s, &t);
+        assert_eq!(table.is_some(), true);
+        let table = table.unwrap();
+        assert_eq!(rs::collect(&table, &s, &t), [
+            vec![0, 1, 2, 3, 4, 5],
+        ].iter().cloned().collect());
     }
 
     #[test]
@@ -138,9 +151,16 @@ mod tests {
     }
 
     #[test]
-    fn test_len_different_sequences() {
+    fn test_len_different_sequences1() {
         let s = vec![5, 2, 1, 6, 0, 3, 7];
         let t = vec![2, 7, 1, 0, 4, 5, 3];
         assert_eq!(rs::len(&s, &t), Some(4));
+    }
+
+    #[test]
+    fn test_len_different_sequences2() {
+        let s = vec![10, 0, 11, 12, 1, 2, 13, 14, 3, 15, 4, 16, 5, 17];
+        let t = vec![0, 20, 1, 2, 3, 21, 22, 23, 4, 24, 5];
+        assert_eq!(rs::len(&s, &t), Some(6));
     }
 }
