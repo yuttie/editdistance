@@ -24,10 +24,10 @@ fn dp<'py>(py: Python<'py>, s: Vec<usize>, t: Vec<usize>) -> PyResult<&'py PyArr
 }
 
 #[pyfunction]
-fn collect<'py>(py: Python<'py>, table: &'py PyArray<u32, Ix2>, s: Vec<usize>, t: Vec<usize>) -> HashSet<Vec<usize>> {
+fn collect<'py>(py: Python<'py>, table: &'py PyArray<u32, Ix2>, s: Vec<usize>, t: Vec<usize>) -> Vec<Vec<usize>> {
     let table = table.readonly();
     let table = table.as_array();
-    py.allow_threads(|| rs::collect(&table, &s, &t))
+    py.allow_threads(|| rs::collect(&table, &s, &t).into_iter().collect())
 }
 
 #[pyfunction]
