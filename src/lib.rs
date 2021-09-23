@@ -27,7 +27,7 @@ fn dp<'py>(py: Python<'py>, s: Vec<usize>, t: Vec<usize>) -> PyResult<&'py PyArr
 fn collect<'py>(py: Python<'py>, table: &'py PyArray<u32, Ix2>, s: Vec<usize>, t: Vec<usize>) -> Vec<Vec<usize>> {
     let table = table.readonly();
     let table = table.as_array();
-    py.allow_threads(|| rs::collect(&table, &s, &t).into_iter().collect())
+    py.allow_threads(|| rs::collect(&s, &t).into_iter().collect())
 }
 
 #[pyfunction]
@@ -39,7 +39,7 @@ mod rs {
     use std::cmp::max;
     use std::vec::Vec;
     use std::hash::Hash;
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
     use ndarray::{ArrayBase, Array2, Ix2, Data, RawData};
 
     /// Compute a DP table.
@@ -67,33 +67,47 @@ mod rs {
         Some(table)
     }
 
-    /// Collect all the longest common subsequences from a given DP table.
-    pub fn collect<'a, T: Eq + Hash + Clone, S: Sync + Data + RawData<Elem = u32>>(table: &ArrayBase<S, Ix2>, s: &[T], t: &[T]) -> HashSet<Vec<T>> {
-        fn backtrack<'a, T: Eq + Hash + Clone, S: Sync + Data + RawData<Elem = u32>>(table: &ArrayBase<S, Ix2>, s: &[T], t: &[T], i: usize, j: usize) -> HashSet<Vec<T>> {
-            if i == 0 || j == 0 {
-                IntoIterator::into_iter([vec![]]).collect()
-            }
-            else if s[i - 1] == t[j - 1] {
-                backtrack(table, s, t, i - 1, j - 1).into_iter().map(|mut subseq| {
-                    subseq.push(s[i - 1].clone());
-                    subseq
-                }).collect()
-            }
-            else {
-                let mut res = HashSet::new();
-                if table[[i, j - 1]] >= table[[i - 1, j]] {
-                    res.extend(backtrack(table, s, t, i, j - 1).into_iter());
+    /// Collect all the longest common subsequences.
+    pub fn collect<'a, T: Eq + Hash + Clone + std::fmt::Debug>(s: &[T], t: &[T]) -> HashSet<Vec<T>> {
+        let n = s.len();
+        let m = t.len();
+
+        if n == 0 || m == 0 {
+            return HashSet::new();
+        }
+
+        let mut table: HashMap<(usize, usize), HashSet<Vec<T>>> = HashMap::new();
+        table.insert((0, 0), IntoIterator::into_iter([vec![]]).collect());
+        for i in 1..=n {
+            table.insert((i, 0), IntoIterator::into_iter([vec![]]).collect());
+        }
+        for j in 1..=m {
+            table.insert((0, j), IntoIterator::into_iter([vec![]]).collect());
+        }
+
+        for i in 1..=n {
+            for j in 1..=m {
+                let lcs_ij = if s[i - 1] == t[j - 1] {
+                    table[&(i - 1, j - 1)].iter().cloned().map(|mut subseq| {
+                        subseq.push(s[i - 1].clone());
+                        subseq
+                    }).collect()
                 }
-                if table[[i - 1, j]] >= table[[i, j - 1]] {
-                    res.extend(backtrack(table, s, t, i - 1, j).into_iter());
-                }
-                res
+                else {
+                    let mut res = HashSet::new();
+                    if table[&(i, j - 1)].iter().next().unwrap().len() >= table[&(i - 1, j)].iter().next().unwrap().len() {
+                        res.extend(table[&(i, j - 1)].iter().cloned());
+                    }
+                    if table[&(i - 1, j)].iter().next().unwrap().len() >= table[&(i, j - 1)].iter().next().unwrap().len() {
+                        res.extend(table[&(i - 1, j)].iter().cloned());
+                    }
+                    res
+                };
+                table.insert((i, j), lcs_ij);
             }
         }
 
-        let n = s.len();
-        let m = t.len();
-        backtrack(table, s, t, n, m)
+        table.remove(&(n, m)).unwrap()
     }
 
     /// Compute the length of longest common subsequence of two given sequences.
@@ -143,7 +157,7 @@ mod tests {
         let table = rs::dp(&s, &t);
         assert_eq!(table.is_some(), true);
         let table = table.unwrap();
-        assert_eq!(rs::collect(&table, &s, &t), [
+        assert_eq!(rs::collect(&s, &t), [
             vec![0, 1, 2, 3, 4],
         ].iter().cloned().collect());
     }
@@ -155,7 +169,7 @@ mod tests {
         let table = rs::dp(&s, &t);
         assert_eq!(table.is_some(), true);
         let table = table.unwrap();
-        assert_eq!(rs::collect(&table, &s, &t), [
+        assert_eq!(rs::collect(&s, &t), [
             vec![2, 1, 0, 3],
         ].iter().cloned().collect());
     }
@@ -167,7 +181,7 @@ mod tests {
         let table = rs::dp(&s, &t);
         assert_eq!(table.is_some(), true);
         let table = table.unwrap();
-        assert_eq!(rs::collect(&table, &s, &t), [
+        assert_eq!(rs::collect(&s, &t), [
             vec![0, 1, 2, 3, 4, 5],
         ].iter().cloned().collect());
     }
