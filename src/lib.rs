@@ -1,5 +1,4 @@
 use std::vec::Vec;
-use std::collections::HashSet;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use pyo3::exceptions::PyValueError;
@@ -40,7 +39,7 @@ mod rs {
     use std::vec::Vec;
     use std::hash::Hash;
     use std::collections::{HashMap, HashSet};
-    use ndarray::{ArrayBase, Array2, Ix2, Data, RawData};
+    use ndarray::{Array2};
 
     /// Compute a DP table.
     pub fn dp<'a, T: Eq>(s: &[T], t: &[T]) -> Option<Array2<u32>> {
