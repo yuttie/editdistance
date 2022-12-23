@@ -1,7 +1,6 @@
 use std::vec::Vec;
 use pyo3::prelude::*;
 use pyo3::types::PyString;
-use pyo3::exceptions::PyValueError;
 use ndarray::Ix2;
 use numpy::{PyArray, ToPyArray};
 
