@@ -1,22 +1,12 @@
 use std::vec::Vec;
 use pyo3::prelude::*;
 use pyo3::types::PyString;
-use pyo3::wrap_pyfunction;
 use pyo3::exceptions::PyValueError;
 use ndarray::Ix2;
 use numpy::{PyArray, ToPyArray};
 
-#[pymodule]
-fn lcs(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(dp, m)?)?;
-    m.add_function(wrap_pyfunction!(collect, m)?)?;
-    m.add_function(wrap_pyfunction!(len, m)?)?;
-
-    Ok(())
-}
-
 #[pyfunction]
-fn dp<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<&'py PyArray<u32, Ix2>> {
+pub fn dp<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<&'py PyArray<u32, Ix2>> {
     let s: Vec<u32> = normalize_input(py, s)?;
     let t: Vec<u32> = normalize_input(py, t)?;
     match py.allow_threads(|| rs::dp(&s, &t)) {
@@ -26,14 +16,14 @@ fn dp<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<&'py PyArray<u
 }
 
 #[pyfunction]
-fn collect<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<Vec<Vec<u32>>> {
+pub fn collect<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<Vec<Vec<u32>>> {
     let s: Vec<u32> = normalize_input(py, s)?;
     let t: Vec<u32> = normalize_input(py, t)?;
     py.allow_threads(|| Ok(rs::collect(&s, &t).into_iter().collect()))
 }
 
 #[pyfunction]
-fn len<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<u32> {
+pub fn len<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<u32> {
     let s: Vec<u32> = normalize_input(py, s)?;
     let t: Vec<u32> = normalize_input(py, t)?;
     py.allow_threads(|| rs::len(&s, &t)).ok_or(PyValueError::new_err("Empty sequence is not allowed."))
