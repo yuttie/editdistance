@@ -1,21 +1,38 @@
 use std::vec::Vec;
 use pyo3::prelude::*;
+use pyo3::types::PyString;
 use ndarray::Ix2;
 use numpy::{PyArray, ToPyArray};
 
 #[pyfunction]
-pub fn dist(py: Python, s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> u32 {
-    py.allow_threads(|| rs::dist(s, t, ins_cost, del_cost, sub_cost))
+pub fn dist(py: Python, s: PyObject, t: PyObject, ins_cost: u32, del_cost: u32, sub_cost: u32) -> PyResult<u32> {
+    let s: Vec<u32> = normalize_input(py, s)?;
+    let t: Vec<u32> = normalize_input(py, t)?;
+    py.allow_threads(|| Ok(rs::dist(&s, &t, ins_cost, del_cost, sub_cost)))
 }
 
 #[pyfunction]
-pub fn nops(py: Python, s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> (u32, u32, u32) {
-    py.allow_threads(|| rs::nops(s, t, ins_cost, del_cost, sub_cost))
+pub fn nops(py: Python, s: PyObject, t: PyObject, ins_cost: u32, del_cost: u32, sub_cost: u32) -> PyResult<(u32, u32, u32)> {
+    let s: Vec<u32> = normalize_input(py, s)?;
+    let t: Vec<u32> = normalize_input(py, t)?;
+    py.allow_threads(|| Ok(rs::nops(&s, &t, ins_cost, del_cost, sub_cost)))
 }
 
 #[pyfunction]
-pub fn pdist<'py>(py: Python<'py>, xs: Vec<&str>, ins_cost: u32, del_cost: u32, sub_cost: u32) -> &'py PyArray<u32, Ix2> {
-    py.allow_threads(|| rs::pdist(&xs, ins_cost, del_cost, sub_cost)).to_pyarray(py)
+pub fn pdist<'py>(py: Python<'py>, xs: Vec<PyObject>, ins_cost: u32, del_cost: u32, sub_cost: u32) -> PyResult<&'py PyArray<u32, Ix2>> {
+    let xs: Vec<Vec<u32>> = xs.into_iter().map(|x| normalize_input(py, x)).collect::<Result<_, _>>()?;
+    Ok(py.allow_threads(|| rs::pdist(&xs, ins_cost, del_cost, sub_cost)).to_pyarray(py))
+}
+
+fn normalize_input<'py>(py: Python<'py>, s: PyObject) -> PyResult<Vec<u32>> {
+    let s: &PyAny = s.as_ref(py);
+    if s.is_instance_of::<PyString>().unwrap() {
+        let s: &str = s.extract()?;
+        Ok(s.chars().map(|c| u32::from(c)).collect())
+    }
+    else {
+        Ok(s.extract()?)
+    }
 }
 
 mod rs {
@@ -25,9 +42,7 @@ mod rs {
     use ndarray::parallel::prelude::par_azip;
 
     /// Compute a DP table.
-    pub fn dp(s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> Array2<u32> {
-        let s = s.chars().collect::<Vec<char>>();
-        let t = t.chars().collect::<Vec<char>>();
+    pub fn dp<'a, T: Eq>(s: &[T], t: &[T], ins_cost: u32, del_cost: u32, sub_cost: u32) -> Array2<u32> {
         let n = s.len();
         let m = t.len();
 
@@ -52,7 +67,7 @@ mod rs {
     }
 
     /// Count the number of operations for each type.
-    pub fn dist(s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> u32 {
+    pub fn dist<'a, T: Eq>(s: &[T], t: &[T], ins_cost: u32, del_cost: u32, sub_cost: u32) -> u32 {
         let table = dp(s, t, ins_cost, del_cost, sub_cost);
         let shape = table.shape();
         let n = shape[0] - 1;
@@ -62,7 +77,7 @@ mod rs {
     }
 
     /// Count the number of operations for each type.
-    pub fn nops(s: &str, t: &str, ins_cost: u32, del_cost: u32, sub_cost: u32) -> (u32, u32, u32) {
+    pub fn nops<'a, T: Eq>(s: &[T], t: &[T], ins_cost: u32, del_cost: u32, sub_cost: u32) -> (u32, u32, u32) {
         let table = dp(s, t, ins_cost, del_cost, sub_cost);
         let mut nins = 0;
         let mut ndel = 0;
@@ -106,7 +121,7 @@ mod rs {
     }
 
     /// Compute pairwise distances between strings.
-    pub fn pdist<T: AsRef<str> + Sync>(xs: &[T], ins_cost: u32, del_cost: u32, sub_cost: u32) -> Array2<u32> {
+    pub fn pdist<T: Eq + Sync>(xs: &[Vec<T>], ins_cost: u32, del_cost: u32, sub_cost: u32) -> Array2<u32> {
         let n = xs.len();
         let mut dmat = Array2::<u32>::zeros((n, n));
         let indices = ndarray::indices_of(&dmat);
@@ -122,9 +137,13 @@ mod tests {
     use super::*;
     use ndarray::array;
 
+    fn to_vec(s: &str) -> Vec<u32> {
+        s.chars().map(|c| u32::from(c)).collect()
+    }
+
     #[test]
     fn test_dp() {
-        assert_eq!(rs::dp("sunday", "saturday", 1, 1, 1), array![
+        assert_eq!(rs::dp(&to_vec("sunday"), &to_vec("saturday"), 1, 1, 1), array![
             [0, 1, 2, 3, 4, 5, 6, 7, 8],
             [1, 0, 1, 2, 3, 4, 5, 6, 7],
             [2, 1, 1, 2, 2, 3, 4, 5, 6],
@@ -133,7 +152,7 @@ mod tests {
             [5, 4, 3, 4, 4, 4, 4, 3, 4],
             [6, 5, 4, 4, 5, 5, 5, 4, 3],
         ]);
-        assert_eq!(rs::dp("sitting", "kitten", 1, 1, 1), array![
+        assert_eq!(rs::dp(&to_vec("sitting"), &to_vec("kitten"), 1, 1, 1), array![
             [0, 1, 2, 3, 4, 5, 6],
             [1, 1, 2, 3, 4, 5, 6],
             [2, 2, 1, 2, 3, 4, 5],
@@ -147,23 +166,23 @@ mod tests {
 
     #[test]
     fn test_dist() {
-        assert_eq!(rs::dist("sunday", "saturday", 1, 1, 1), 3);
-        assert_eq!(rs::dist("sitting", "kitten", 1, 1, 1), 3);
-        assert_eq!(rs::dist("", "empty", 1, 1, 1), 5);
-        assert_eq!(rs::dist("empty", "", 1, 1, 1), 5);
+        assert_eq!(rs::dist(&to_vec("sunday"), &to_vec("saturday"), 1, 1, 1), 3);
+        assert_eq!(rs::dist(&to_vec("sitting"), &to_vec("kitten"), 1, 1, 1), 3);
+        assert_eq!(rs::dist(&to_vec(""), &to_vec("empty"), 1, 1, 1), 5);
+        assert_eq!(rs::dist(&to_vec("empty"), &to_vec(""), 1, 1, 1), 5);
     }
 
     #[test]
     fn test_nops() {
-        assert_eq!(rs::nops("sunday", "saturday", 1, 1, 1), (2, 0, 1));
-        assert_eq!(rs::nops("sitting", "kitten", 1, 1, 1), (0, 1, 2));
-        assert_eq!(rs::nops("", "empty", 1, 1, 1), (5, 0, 0));
-        assert_eq!(rs::nops("empty", "", 1, 1, 1), (0, 5, 0));
+        assert_eq!(rs::nops(&to_vec("sunday"), &to_vec("saturday"), 1, 1, 1), (2, 0, 1));
+        assert_eq!(rs::nops(&to_vec("sitting"), &to_vec("kitten"), 1, 1, 1), (0, 1, 2));
+        assert_eq!(rs::nops(&to_vec(""), &to_vec("empty"), 1, 1, 1), (5, 0, 0));
+        assert_eq!(rs::nops(&to_vec("empty"), &to_vec(""), 1, 1, 1), (0, 5, 0));
     }
 
     #[test]
     fn test_pdist() {
-        assert_eq!(rs::pdist(&["sunday", "saturday", "sitting", "kitten", ""], 1, 1, 1), array![
+        assert_eq!(rs::pdist(&[to_vec("sunday"), to_vec("saturday"), to_vec("sitting"), to_vec("kitten"), to_vec("")], 1, 1, 1), array![
             [0, 3, 6, 6, 6],
             [3, 0, 6, 7, 8],
             [6, 6, 0, 3, 7],
