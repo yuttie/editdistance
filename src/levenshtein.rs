@@ -66,7 +66,7 @@ mod rs {
         table
     }
 
-    /// Count the number of operations for each type.
+    /// Compute the Levenshtein distance of two given sequences.
     pub fn dist<'a, T: Eq>(s: &[T], t: &[T], ins_cost: u32, del_cost: u32, sub_cost: u32) -> u32 {
         let table = dp(s, t, ins_cost, del_cost, sub_cost);
         let shape = table.shape();
