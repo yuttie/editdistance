@@ -9,10 +9,7 @@ use numpy::{PyArray, ToPyArray};
 pub fn dp<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<&'py PyArray<u32, Ix2>> {
     let s: Vec<u32> = normalize_input(py, s)?;
     let t: Vec<u32> = normalize_input(py, t)?;
-    match py.allow_threads(|| rs::dp(&s, &t)) {
-        Some(table) => Ok(table.to_pyarray(py)),
-        None => Err(PyValueError::new_err("Empty sequence is not allowed.")),
-    }
+    Ok(py.allow_threads(|| rs::dp(&s, &t)).to_pyarray(py))
 }
 
 #[pyfunction]
@@ -26,14 +23,14 @@ pub fn collect<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<Vec<V
 pub fn len<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<u32> {
     let s: Vec<u32> = normalize_input(py, s)?;
     let t: Vec<u32> = normalize_input(py, t)?;
-    py.allow_threads(|| rs::len(&s, &t)).ok_or(PyValueError::new_err("Empty sequence is not allowed."))
+    py.allow_threads(|| Ok(rs::len(&s, &t)))
 }
 
 #[pyfunction]
 pub fn dist<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<u32> {
     let s: Vec<u32> = normalize_input(py, s)?;
     let t: Vec<u32> = normalize_input(py, t)?;
-    py.allow_threads(|| rs::dist(&s, &t)).ok_or(PyValueError::new_err("Empty sequence is not allowed."))
+    py.allow_threads(|| Ok(rs::dist(&s, &t)))
 }
 
 fn normalize_input<'py>(py: Python<'py>, s: PyObject) -> PyResult<Vec<u32>> {
@@ -55,28 +52,26 @@ mod rs {
     use ndarray::Array2;
 
     /// Compute a DP table.
-    pub fn dp<'a, T: Eq>(s: &[T], t: &[T]) -> Option<Array2<u32>> {
+    pub fn dp<'a, T: Eq>(s: &[T], t: &[T]) -> Array2<u32> {
         let n = s.len();
         let m = t.len();
 
-        if n == 0 || m == 0 {
-            return None;
-        }
-
         let mut table = Array2::<u32>::zeros((n + 1, m + 1));
 
-        for i in 1..=n {
-            for j in 1..=m {
-                table[[i, j]] = if s[i - 1] == t[j - 1] {
-                    table[[i - 1, j - 1]] + 1
+        if n > 0 && m > 0 {
+            for i in 1..=n {
+                for j in 1..=m {
+                    table[[i, j]] = if s[i - 1] == t[j - 1] {
+                        table[[i - 1, j - 1]] + 1
+                    }
+                    else {
+                        max(table[[i, j - 1]], table[[i - 1, j]])
+                    };
                 }
-                else {
-                    max(table[[i, j - 1]], table[[i - 1, j]])
-                };
             }
         }
 
-        Some(table)
+        table
     }
 
     /// Collect all the longest common subsequences.
@@ -123,17 +118,19 @@ mod rs {
     }
 
     /// Compute the length of longest common subsequence of two given sequences.
-    pub fn len<'a, T: Eq>(s: &[T], t: &[T]) -> Option<u32> {
+    pub fn len<'a, T: Eq>(s: &[T], t: &[T]) -> u32 {
         let n = s.len();
         let m = t.len();
-        dp(s, t).map(|table| table[[n, m]])
+        let table = dp(s, t);
+        table[[n, m]]
     }
 
     /// Compute the LCS distance of two given sequences.
-    pub fn dist<'a, T: Eq>(s: &[T], t: &[T]) -> Option<u32> {
+    pub fn dist<'a, T: Eq>(s: &[T], t: &[T]) -> u32 {
         let n = s.len();
         let m = t.len();
-        len(s, t).map(|l| n + m - 2 * l)
+        let l = len(s, t);
+        u32::try_from(n + m).unwrap() - 2 * l
     }
 }
 
@@ -146,7 +143,7 @@ mod tests {
     fn test_dp() {
         let s = vec![5, 2, 1, 6, 0, 3, 7];
         let t = vec![2, 7, 1, 0, 4, 5, 3];
-        assert_eq!(rs::dp(&s, &t), Some(array![
+        assert_eq!(rs::dp(&s, &t), array![
             [0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 1, 1],
             [0, 1, 1, 1, 1, 1, 1, 1],
@@ -155,27 +152,34 @@ mod tests {
             [0, 1, 1, 2, 3, 3, 3, 3],
             [0, 1, 1, 2, 3, 3, 3, 4],
             [0, 1, 2, 2, 3, 3, 3, 4],
-        ]));
+        ]);
     }
 
     #[test]
     fn test_dp_with_empty_sequence() {
         let s = vec![];
         let t = vec![0, 1, 2, 3, 4];
-        assert_eq!(rs::dp(&s, &t), None);
+        assert_eq!(rs::dp(&s, &t), array![
+            [0, 0, 0, 0, 0, 0],
+        ]);
 
         let s = vec![0, 1, 2, 3, 4];
         let t = vec![];
-        assert_eq!(rs::dp(&s, &t), None);
+        assert_eq!(rs::dp(&s, &t), array![
+            [0],
+            [0],
+            [0],
+            [0],
+            [0],
+            [0],
+        ]);
     }
 
     #[test]
     fn test_collect_equal_sequences() {
         let s = vec![0, 1, 2, 3, 4];
         let t = vec![0, 1, 2, 3, 4];
-        let table = rs::dp(&s, &t);
-        assert_eq!(table.is_some(), true);
-        let _table = table.unwrap();
+        let _table = rs::dp(&s, &t);
         assert_eq!(rs::collect(&s, &t), [
             vec![0, 1, 2, 3, 4],
         ].iter().cloned().collect());
@@ -185,9 +189,7 @@ mod tests {
     fn test_collect_different_sequences1() {
         let s = vec![5, 2, 1, 6, 0, 3, 7];
         let t = vec![2, 7, 1, 0, 4, 5, 3];
-        let table = rs::dp(&s, &t);
-        assert_eq!(table.is_some(), true);
-        let _table = table.unwrap();
+        let _table = rs::dp(&s, &t);
         assert_eq!(rs::collect(&s, &t), [
             vec![2, 1, 0, 3],
         ].iter().cloned().collect());
@@ -197,9 +199,7 @@ mod tests {
     fn test_collect_different_sequences2() {
         let s = vec![10, 0, 11, 12, 1, 2, 13, 14, 3, 15, 4, 16, 5, 17];
         let t = vec![0, 20, 1, 2, 3, 21, 22, 23, 4, 24, 5];
-        let table = rs::dp(&s, &t);
-        assert_eq!(table.is_some(), true);
-        let _table = table.unwrap();
+        let _table = rs::dp(&s, &t);
         assert_eq!(rs::collect(&s, &t), [
             vec![0, 1, 2, 3, 4, 5],
         ].iter().cloned().collect());
@@ -209,20 +209,20 @@ mod tests {
     fn test_len_equal_sequences() {
         let s = vec![0, 1, 2, 3, 4];
         let t = vec![0, 1, 2, 3, 4];
-        assert_eq!(rs::len(&s, &t), Some(5));
+        assert_eq!(rs::len(&s, &t), 5);
     }
 
     #[test]
     fn test_len_different_sequences1() {
         let s = vec![5, 2, 1, 6, 0, 3, 7];
         let t = vec![2, 7, 1, 0, 4, 5, 3];
-        assert_eq!(rs::len(&s, &t), Some(4));
+        assert_eq!(rs::len(&s, &t), 4);
     }
 
     #[test]
     fn test_len_different_sequences2() {
         let s = vec![10, 0, 11, 12, 1, 2, 13, 14, 3, 15, 4, 16, 5, 17];
         let t = vec![0, 20, 1, 2, 3, 21, 22, 23, 4, 24, 5];
-        assert_eq!(rs::len(&s, &t), Some(6));
+        assert_eq!(rs::len(&s, &t), 6);
     }
 }
