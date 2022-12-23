@@ -37,7 +37,7 @@ mod rs {
     use std::vec::Vec;
     use std::hash::Hash;
     use std::collections::{HashMap, HashSet};
-    use ndarray::{Array2};
+    use ndarray::Array2;
 
     /// Compute a DP table.
     pub fn dp<'a, T: Eq>(s: &[T], t: &[T]) -> Option<Array2<u32>> {
@@ -118,7 +118,7 @@ mod rs {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{array};
+    use ndarray::array;
 
     #[test]
     fn test_dp() {
@@ -153,7 +153,7 @@ mod tests {
         let t = vec![0, 1, 2, 3, 4];
         let table = rs::dp(&s, &t);
         assert_eq!(table.is_some(), true);
-        let table = table.unwrap();
+        let _table = table.unwrap();
         assert_eq!(rs::collect(&s, &t), [
             vec![0, 1, 2, 3, 4],
         ].iter().cloned().collect());
@@ -165,7 +165,7 @@ mod tests {
         let t = vec![2, 7, 1, 0, 4, 5, 3];
         let table = rs::dp(&s, &t);
         assert_eq!(table.is_some(), true);
-        let table = table.unwrap();
+        let _table = table.unwrap();
         assert_eq!(rs::collect(&s, &t), [
             vec![2, 1, 0, 3],
         ].iter().cloned().collect());
@@ -177,7 +177,7 @@ mod tests {
         let t = vec![0, 20, 1, 2, 3, 21, 22, 23, 4, 24, 5];
         let table = rs::dp(&s, &t);
         assert_eq!(table.is_some(), true);
-        let table = table.unwrap();
+        let _table = table.unwrap();
         assert_eq!(rs::collect(&s, &t), [
             vec![0, 1, 2, 3, 4, 5],
         ].iter().cloned().collect());
