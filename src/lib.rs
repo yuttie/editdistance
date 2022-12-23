@@ -10,6 +10,7 @@ fn editdistance(py: Python, m: &PyModule) -> PyResult<()> {
     lcs_module.add_function(wrap_pyfunction!(lcs::dp, m)?)?;
     lcs_module.add_function(wrap_pyfunction!(lcs::collect, m)?)?;
     lcs_module.add_function(wrap_pyfunction!(lcs::len, m)?)?;
+    lcs_module.add_function(wrap_pyfunction!(lcs::dist, m)?)?;
 
     let levenshtein_module = PyModule::new(py, "levenshtein")?;
     levenshtein_module.add_function(wrap_pyfunction!(levenshtein::dist, m)?)?;
