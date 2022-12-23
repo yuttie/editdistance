@@ -32,6 +32,13 @@ pub fn dist<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<u32> {
     py.allow_threads(|| Ok(rs::dist(&s, &t)))
 }
 
+#[pyfunction]
+pub fn sim<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<f64> {
+    let s: Vec<u32> = normalize_input(py, s)?;
+    let t: Vec<u32> = normalize_input(py, t)?;
+    py.allow_threads(|| Ok(rs::sim(&s, &t)))
+}
+
 fn normalize_input<'py>(py: Python<'py>, s: PyObject) -> PyResult<Vec<u32>> {
     let s: &PyAny = s.as_ref(py);
     if s.is_instance_of::<PyString>().unwrap() {
@@ -130,6 +137,14 @@ mod rs {
         let m = t.len();
         let l = len(s, t);
         u32::try_from(n + m).unwrap() - 2 * l
+    }
+
+    /// Compute the LCS similarity of two given sequences.
+    pub fn sim<'a, T: Eq>(s: &[T], t: &[T]) -> f64 {
+        let n = s.len();
+        let m = t.len();
+        let l = len(s, t);
+        f64::from(2 * l) / (n + m) as f64
     }
 }
 
