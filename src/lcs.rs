@@ -29,6 +29,13 @@ pub fn len<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<u32> {
     py.allow_threads(|| rs::len(&s, &t)).ok_or(PyValueError::new_err("Empty sequence is not allowed."))
 }
 
+#[pyfunction]
+pub fn dist<'py>(py: Python<'py>, s: PyObject, t: PyObject) -> PyResult<u32> {
+    let s: Vec<u32> = normalize_input(py, s)?;
+    let t: Vec<u32> = normalize_input(py, t)?;
+    py.allow_threads(|| rs::dist(&s, &t)).ok_or(PyValueError::new_err("Empty sequence is not allowed."))
+}
+
 fn normalize_input<'py>(py: Python<'py>, s: PyObject) -> PyResult<Vec<u32>> {
     let s: &PyAny = s.as_ref(py);
     if s.is_instance_of::<PyString>().unwrap() {
@@ -120,6 +127,13 @@ mod rs {
         let n = s.len();
         let m = t.len();
         dp(s, t).map(|table| table[[n, m]])
+    }
+
+    /// Compute the LCS distance of two given sequences.
+    pub fn dist<'a, T: Eq>(s: &[T], t: &[T]) -> Option<u32> {
+        let n = s.len();
+        let m = t.len();
+        len(s, t).map(|l| n + m - 2 * l)
     }
 }
 
