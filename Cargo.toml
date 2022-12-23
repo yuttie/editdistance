@@ -9,9 +9,9 @@ name = "lcs"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.15.1"
-numpy = "0.15.1"
-ndarray = { version = "0.15.4", features = ["rayon"] }
+pyo3 = "0.17.3"
+numpy = "0.17.2"
+ndarray = { version = "0.15.6", features = ["rayon"] }
 
 [features]
 extension-module = ["pyo3/extension-module"]
