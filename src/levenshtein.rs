@@ -69,9 +69,8 @@ mod rs {
     /// Compute the Levenshtein distance of two given sequences.
     pub fn dist<'a, T: Eq>(s: &[T], t: &[T], ins_cost: u32, del_cost: u32, sub_cost: u32) -> u32 {
         let table = dp(s, t, ins_cost, del_cost, sub_cost);
-        let shape = table.shape();
-        let n = shape[0] - 1;
-        let m = shape[1] - 1;
+        let n = s.len();
+        let m = t.len();
 
         table[[n, m]]
     }
@@ -82,9 +81,8 @@ mod rs {
         let mut nins = 0;
         let mut ndel = 0;
         let mut nsub = 0;
-        let shape = table.shape();
-        let mut i = shape[0] - 1;
-        let mut j = shape[1] - 1;
+        let mut i = s.len();
+        let mut j = t.len();
         while !(i == 0 || j == 0) {
             if table[[i - 1, j - 1]] <= table[[i, j - 1]] {
                 if table[[i - 1, j - 1]] <= table[[i - 1, j]] {
