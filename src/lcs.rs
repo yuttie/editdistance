@@ -144,7 +144,12 @@ mod rs {
         let n = s.len();
         let m = t.len();
         let l = len(s, t);
-        f64::from(2 * l) / (n + m) as f64
+        if n + m == 0 {
+            1.
+        }
+        else {
+            f64::from(2 * l) / (n + m) as f64
+        }
     }
 }
 
